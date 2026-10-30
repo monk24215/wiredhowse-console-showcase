@@ -1,0 +1,24 @@
+# Add to /opt/claude-railway-showcase/Caddyfile.
+#
+# 1) Global options block — must be the FIRST block in the Caddyfile.
+#    If the file already starts with a { ... } block, add the on_demand_tls part inside it.
+{
+	on_demand_tls {
+		ask http://wiredhowse-console:8080/internal/tls-ask
+	}
+}
+
+# 2) The console itself (use the same value as CONSOLE_HOST in .env)
+fastassets.wiredhowse.app {
+	reverse_proxy wiredhowse-console:8080
+}
+
+# 3) Every asset hostname (wh-asset-<id>.<ASSET_BASE_DOMAIN>) and every user custom domain.
+#    Certificates are issued on first request, only for hostnames the console approves
+#    via /internal/tls-ask. Explicit site blocks above/elsewhere still take precedence.
+https:// {
+	tls {
+		on_demand
+	}
+	reverse_proxy wiredhowse-console:8080
+}

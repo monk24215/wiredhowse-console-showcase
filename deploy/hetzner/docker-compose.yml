@@ -1,0 +1,54 @@
+# WiredHowse Console on the Hetzner app server (services.defendsurviveprepare.com).
+#
+# Layout on the server:
+#   /opt/wiredhowse-console/
+#     docker-compose.yml   <- this file
+#     .env                 <- from .env.example (never committed)
+#     app/                 <- git clone of monk24215/wiredhowse-console
+#     data/assets/         <- hosted asset sites (created automatically)
+#     pgdata/              <- console Postgres data (created automatically)
+#
+# Same pattern as /opt/listmonk: own bundled Postgres, console joins the existing Caddy
+# network (claude-railway-showcase_default) so Caddy can reach it as wiredhowse-console:8080.
+
+services:
+  console:
+    build: ./app
+    container_name: wiredhowse-console
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://console:${POSTGRES_PASSWORD}@db:5432/console
+      ASSETS_DIR: /data/assets
+      PORT: "8080"
+    volumes:
+      - ./data:/data
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - default
+      - caddy
+
+  db:
+    image: postgres:16-alpine
+    container_name: wiredhowse-console-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: console
+      POSTGRES_USER: console
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U console -d console"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - default
+
+networks:
+  caddy:
+    external: true
+    name: claude-railway-showcase_default
